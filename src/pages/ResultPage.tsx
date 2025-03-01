@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Background from '../components/Background';
+import { isMaghrebTime } from '../utils/prayerTime';
 
 interface LocationState {
   name: string;
@@ -18,6 +19,9 @@ const ResultPage = () => {
   const [showMeme, setShowMeme] = useState(false);
   const [showWarning, setShowWarning] = useState(true);
   const [videoEnded, setVideoEnded] = useState(false);
+  const [canEat, setCanEat] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+  const [notAllowedAudio] = useState(new Audio('/sounds/beforemaghreb.mp3'));
 
   const samosaSteps = [
     '/1.png',
@@ -71,6 +75,15 @@ const ResultPage = () => {
     }
   }, [videoEnded, navigate]);
 
+  useEffect(() => {
+    const checkPrayerTime = async () => {
+      const afterMaghreb = await isMaghrebTime();
+      setCanEat(afterMaghreb);
+      setIsChecking(false);
+    };
+    checkPrayerTime();
+  }, []);
+
   const playEatingSound = (step: number) => {
     audio.src = eatingSounds[step];
     audio.volume = 1; // Adjust volume as needed
@@ -78,6 +91,13 @@ const ResultPage = () => {
   };
 
   const handleImageClick = () => {
+    if (!canEat) {
+      notAllowedAudio.currentTime = 0;
+      notAllowedAudio.volume = 0.7;
+      notAllowedAudio.play().catch(console.error);
+      return;
+    }
+    
     if (isTransitioning) return;
     
     setIsTransitioning(true);
@@ -99,12 +119,14 @@ const ResultPage = () => {
   return (
     <Background>
       <div className="relative bg-gradient-to-b from-[#1a1f3c] to-[#162339] p-6 sm:p-10 pb-8 sm:pb-12 rounded-3xl w-full max-w-[32rem] border border-blue-500/20 shadow-xl shadow-blue-900/20">
-        {/* Add warning message */}
-        {showWarning && (
+        {/* Warning message based on prayer time */}
+        {showWarning && !isChecking && (
           <div className="absolute top-0 left-0 right-0 -mt-16 animate-fade-warning">
-            <div className="bg-red-500/90 text-white px-4 py-2 rounded-lg shadow-lg">
+            <div className={`${canEat ? 'bg-green-500/90' : 'bg-red-500/90'} text-white px-4 py-2 rounded-lg shadow-lg`}>
               <p className="text-center font-arabic text-lg">
-                في رمضان مش هتعرف تاكلها الا بعد الفطار
+                {canEat 
+                  ? 'تقبل الله صيامك! تفضل كُل' 
+                  : 'في رمضان مش هتعرف تاكلها الا بعد الفطار'}
               </p>
             </div>
           </div>
@@ -120,7 +142,7 @@ const ResultPage = () => {
           </h1>
           
           <div 
-            className="cursor-pointer relative h-[250px] sm:h-[300px] flex items-center justify-center mb-4"
+            className="cursor-pointer relative h-[250px] sm:h-[300px] flex items-center justify-center mb-4 hover:cursor-pointer"
             onClick={handleImageClick}
           >
             <img 
@@ -128,7 +150,7 @@ const ResultPage = () => {
               alt={`${choice} eating step ${step + 1}`}
               className={`max-w-full max-h-full object-contain transition-all duration-150 ${
                 isTransitioning ? 'opacity-0' : 'opacity-100'
-              }`}
+              } ${!canEat ? 'filter grayscale' : ''}`}
               style={{ 
                 filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))',
                 transform: `scale(${scaleFactors[step]})`,
@@ -137,7 +159,11 @@ const ResultPage = () => {
               }}
             />
             <p className="absolute bottom-0 text-blue-200/80 text-sm">
-              Click to take a bite!
+              {isChecking 
+                ? 'Checking prayer time...' 
+                : canEat 
+                  ? 'Click to take a bite!' 
+                  : 'Wait until Maghreb prayer'}
             </p>
           </div>
 
