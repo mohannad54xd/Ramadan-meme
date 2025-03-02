@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Background from '../components/Background';
-import { isMaghrebTime } from '../utils/prayerTime';
+import { canEatTime } from '../utils/prayerTime';
 
 interface LocationState {
   name: string;
@@ -77,8 +77,8 @@ const ResultPage = () => {
 
   useEffect(() => {
     const checkPrayerTime = async () => {
-      const afterMaghreb = await isMaghrebTime();
-      setCanEat(afterMaghreb);
+      const canEatNow = await canEatTime();
+      setCanEat(canEatNow);
       setIsChecking(false);
     };
     checkPrayerTime();
