@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { AxiosError } from 'axios';
 
 interface PrayerTimes {
   Maghrib: string;
@@ -14,17 +15,27 @@ export const canEatTime = async (): Promise<boolean> => {
 
   try {
     console.log('Fetching prayer times...');
-    // Using Aladhan API for Amman, Jordan
-    const response = await axios.get(
-      'http://api.aladhan.com/v1/timingsByCity',
+    // Using HTTPS and adding date parameter
+    const response = await axios.get<{ data: { timings: PrayerTimes } }>(
+      'https://api.aladhan.com/v1/timingsByCity',
       {
         params: {
           city: 'Giza',
           country: 'Egypt',
-          method: 4
+          method: 4,
+          date: new Date().toISOString().split('T')[0], // Add current date
+        },
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
       }
     );
+
+    if (!response.data || !response.data.data || !response.data.data.timings) {
+      console.error('Invalid API response format:', response.data);
+      return false;
+    }
 
     console.log('Prayer times response:', response.data);
     const data = response.data as { data: { timings: PrayerTimes } };
@@ -53,13 +64,19 @@ export const canEatTime = async (): Promise<boolean> => {
 
     // Can eat if time is between Maghrib and Fajr
     return now >= maghribDate && now < fajrDate;
-  } catch (error) {
-    const err = error as any;
-    console.error('Prayer times API error:', {
-      message: err.message,
-      response: err.response?.data,
-      status: err.response?.status
-    });
+  } catch (error: unknown) {
+    // More detailed error logging
+    if ((error as AxiosError).isAxiosError) {
+      const axiosError = error as AxiosError;
+      console.error('Prayer times API error:', {
+        message: axiosError.message,
+        response: axiosError.response?.data,
+        status: axiosError.response?.status,
+        url: axiosError.config?.url
+      });
+    } else {
+      console.error('Unexpected error:', error);
+    }
     return false;
   }
 };
